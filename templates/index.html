@@ -1,0 +1,199 @@
+    <title>PID DC Motor Control Webserver</title>
+    <script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.min.js"></script>
+    <script type="text/javascript" charset="utf-8">
+
+    //var current_speed = <?= $init['current_speed']; ?>;
+
+    $(document).ready(function() {
+        // Use a "/test" namespace.
+        // An application can open a connection on multiple namespaces, and
+        // Socket.IO will multiplex all those connections on a single
+        // physical channel. If you don't care about multiple channels, you
+        // can set the namespace to an empty string.
+        namespace = '/motorControl';
+
+        current_speed = 1;
+        // Connect to the Socket.IO server.
+        // The connection URL has the following format:
+        //     http[s]://<domain>:<port>[/<namespace>]
+        var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
+
+        // Event handler for new connections.
+        // The callback function is invoked when a connection with the
+        // server is established.
+        socket.on('connect', function() {
+            socket.emit('my_event', {data: 'I\'m connected!'});
+        });
+
+        // Event handler for server sent data.
+        // The callback function is invoked whenever the server emits data
+        // to the client. The data is then displayed in the "Received"
+        // section of the page.
+        socket.on('my_response', function(msg) {
+            $('#log').append('<br>' + $('<div/>').text('Received #' + msg.count + ': ' + msg.data).html());
+        });
+
+        socket.on('send_JSON', function(msg) {
+            current_speed = msg.Speed;
+        });
+
+        // Interval function that tests message latency by sending a "ping"
+        // message. The server then responds with a "pong" message and the
+        // round trip time is measured.
+        var ping_pong_times = [];
+        var start_time;
+        window.setInterval(function() {
+            start_time = (new Date).getTime();
+            socket.emit('my_ping');
+        }, 1000);
+
+        window.setInterval(function() {
+            socket.emit('json_request');
+        }, 500);
+
+        // Handler for the "pong" message. When the pong is received, the
+        // time from the ping is stored, and the average of the last 30
+        // samples is average and displayed.
+        socket.on('my_pong', function() {
+            var latency = (new Date).getTime() - start_time;
+            ping_pong_times.push(latency);
+            ping_pong_times = ping_pong_times.slice(-30); // keep last 30 samples
+            var sum = 0;
+            for (var i = 0; i < ping_pong_times.length; i++)
+                sum += ping_pong_times[i];
+            $('#ping-pong').text(Math.round(10 * sum / ping_pong_times.length) / 10);
+        });
+
+        // Handlers for the different forms in the page.
+        // These accept data from the user and send it to the server in a
+        // variety of ways
+        $('form#speed').submit(function(event) {
+            socket.emit('speed_event', {data: $('#speed_data').val()});
+            return false;
+        });
+        $('form#direction').submit(function(event) {
+            socket.emit('direction_event', {data: $('#direction_data').val()});
+            return false;
+        });
+        $('form#Kp').submit(function(event) {
+            socket.emit('Kp_event', {data: $('#Kp_data').val()});
+            return false;
+        });
+        $('form#Ki').submit(function(event) {
+            socket.emit('Ki_event', {data: $('#Ki_data').val()});
+            return false;
+        });
+        $('form#Kd').submit(function(event) {
+            socket.emit('Kd_event', {data: $('#Kd_data').val()});
+            return false;
+        });
+        $(".enable_data").change(function() {
+          socket.emit('enable_event', {data: $('#enable_data option:selected').val()});
+          return false;
+        });
+    });
+
+    </script>
+</head>
+<body>
+    <h1>PID DC Motor Control Webserver</h1>
+    <p>Async mode is: <b>{{ async_mode }}</b></p>
+    <p>Average ping/pong latency: <b><span id="ping-pong"></span>ms</b></p>
+    <h2>Send:</h2>
+    <form id="enable" method="POST" action='#'>
+        <select id="enable_data" class="enable_data">
+            <option value="1">Enabled</option>
+            <option value="0" selected>Disabled</option>
+        </select>
+    </form>
+    <form id="speed" method="POST" action='#'>
+        <input type="text" name="speed_data" id="speed_data" value="100">
+        <input type="submit" value="Speed (RPM)">
+    </form>
+    <form id="Kp" method="POST" action='#'>
+        <input type="text" name="Kp_data" id="Kp_data" value="1.0">
+        <input type="submit" value="Proportional Gain (Kp)">
+    </form>
+    <form id="Ki" method="POST" action='#'>
+        <input type="text" name="Ki_data" id="Ki_data" value="0.5">
+        <input type="submit" value="Integral Gain (Ki)">
+    </form>
+    <form id="Kd" method="POST" action='#'>
+        <input type="text" name="Kd_data" id="Kd_data" value="1.0">
+        <input type="submit" value="Differential Gain (Kd)">
+    </form>
+
+<div id="chart">
+  <style>
+  .line {
+    fill: none;
+    stroke: #000;
+    stroke-width: 1.5px;
+  }
+  </style>
+  </div>
+  <svg width="960" height="500"></svg>
+  <script src="//d3js.org/d3.v4.min.js"></script>
+  <script>
+  var n = 500,
+      data = d3.range(n).map(function(){
+        return 0;
+      });
+  var svg = d3.select("svg"),
+      margin = {top: 20, right: 20, bottom: 20, left: 40},
+      width = +svg.attr("width") - margin.left - margin.right,
+      height = +svg.attr("height") - margin.top - margin.bottom,
+      g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+  var x = d3.scaleLinear()
+      .domain([0, n - 1])
+      .range([0, width]);
+  var y = d3.scaleLinear()
+      .domain([-300, 300])
+      .range([height, 0]);
+  var line = d3.line()
+      .x(function(d, i) { return x(i); })
+      .y(function(d, i) { return y(d); });
+  g.append("defs").append("clipPath")
+      .attr("id", "clip")
+    .append("rect")
+      .attr("width", width)
+      .attr("height", height);
+  g.append("g")
+      .attr("class", "axis axis--x")
+      .attr("transform", "translate(0," + y(0) + ")")
+      .call(d3.axisBottom(x));
+  g.append("g")
+      .attr("class", "axis axis--y")
+      .call(d3.axisLeft(y));
+  g.append("g")
+      .attr("clip-path", "url(#clip)")
+    .append("path")
+      .datum(data)
+      .attr("class", "line")
+    .transition()
+      .duration(500)
+      .ease(d3.easeLinear)
+      .on("start", tick);
+  function tick() {
+    // Push a new data point onto the back.
+    data.push(current_speed);
+    // Redraw the line.
+    d3.select(this)
+        .attr("d", line)
+        .attr("transform", null);
+    // Slide it to the left.
+    d3.active(this)
+        .attr("transform", "translate(" + x(-1) + ",0)")
+      .transition()
+        .on("start", tick);
+    // Pop the old data point off the front.
+    data.shift();
+  }
+  </script>
+
+    <h2>Receive:</h2>
+    <div id="log"></div>
+
+</body>
+</html>
