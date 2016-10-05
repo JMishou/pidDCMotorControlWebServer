@@ -112,18 +112,18 @@
         <input type="submit" value="Speed (RPM)">
     </form>
     <form id="Kp" method="POST" action='#'>
-        <input type="text" name="Kp_data" id="Kp_data" value="1.0">
+        <input type="text" name="Kp_data" id="Kp_data" value="1.00">
         <input type="submit" value="Proportional Gain (Kp)">
     </form>
     <form id="Ki" method="POST" action='#'>
-        <input type="text" name="Ki_data" id="Ki_data" value="0.5">
+        <input type="text" name="Ki_data" id="Ki_data" value="0.25">
         <input type="submit" value="Integral Gain (Ki)">
     </form>
     <form id="Kd" method="POST" action='#'>
-        <input type="text" name="Kd_data" id="Kd_data" value="1.0">
+        <input type="text" name="Kd_data" id="Kd_data" value="0.50">
         <input type="submit" value="Differential Gain (Kd)">
     </form>
-
+<p>Measured speed: <b><span id="cur_speed"></span> RPM</b></p>
 <div id="chart">
   <style>
   .line {
@@ -136,7 +136,7 @@
   <svg width="960" height="500"></svg>
   <script src="//d3js.org/d3.v4.min.js"></script>
   <script>
-  var n = 500,
+  var n = 50,
       data = d3.range(n).map(function(){
         return 0;
       });
@@ -149,7 +149,7 @@
       .domain([0, n - 1])
       .range([0, width]);
   var y = d3.scaleLinear()
-      .domain([-300, 300])
+      .domain([-400, 400])
       .range([height, 0]);
   var line = d3.line()
       .x(function(d, i) { return x(i); })
@@ -178,6 +178,7 @@
   function tick() {
     // Push a new data point onto the back.
     data.push(current_speed);
+    $('#cur_speed').text(Math.round(current_speed*100)/100);
     // Redraw the line.
     d3.select(this)
         .attr("d", line)

@@ -14,7 +14,7 @@ import json
 
 encA = 20
 encB = 21
-encRes = 120
+encRes = 128
 
 L298N_ENA = 24
 L298N_IN1 = 23
