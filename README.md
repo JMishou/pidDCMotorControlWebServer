@@ -12,16 +12,11 @@ PIGPIO - Hardware timed gpio library
 
 # Install dependancies
 
-sudo apt-get update
-
-sudo apt-get install pigpio python-pigpio python3-pigpio
-
-
-sudo apt-get install python-pip
-
-pip install flask
-
-pip install flask-socketio
+	sudo apt-get update
+	sudo apt-get install pigpio python-pigpio python3-pigpio
+	sudo apt-get install python-pip
+	pip install flask
+	pip install flask-socketio
 
 # Usage
 
