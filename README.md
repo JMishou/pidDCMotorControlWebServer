@@ -27,8 +27,8 @@ pip install flask-socketio
 
 start the pigpio daemon
 
-sudo pigpiod
+	sudo pigpiod
 
 start the webserver
 
-sudo python app.py
+	sudo python app.py
